@@ -64,12 +64,14 @@ class LaravelCryptoKiller():
     def bruteforce_cipher(self, cipher):
         directory="wordlists"
         if self.key_file:
-            result = self.laravel_encrypter.bruteforce_from_file(self.key_file, cipher)
+            with open(self.key_file, "r") as file_to_test:
+                result = self.laravel_encrypter.bruteforce_from_file(file_to_test, cipher)
         else:
             for filename in os.scandir(directory):
                 if filename.is_file():
                     file_to_test = open(filename.path, "r")
                     result = self.laravel_encrypter.bruteforce_from_file(file_to_test, cipher)
+                    file_to_test.close()
                     if result:
                         to_print = "[+] It is your lucky day! A key was identified!\nCipher : {}\nKey : {}\n[*] Unciphered value\n{}".format(cipher, result["key"], result["value"]).strip()
                         if self.is_serialized_data(result["value"]):
@@ -129,8 +131,8 @@ class LaravelCryptoKiller():
 
         # Bruteforce options
         parser_bruteforce = subparsers.add_parser('bruteforce', help="Bruteforce potential values of APP_KEY. By default, all the values from the folder wordlists will be loaded.")
-        parser_bruteforce.add_argument('--key_file', type=open, help="Path to the file used to bruteforce the APP_KEY, must contain one value per line", required=False)
-        parser_bruteforce.add_argument('--cipher_file', type=open, help="Path to a file containing a list of ciphered values", required=False)
+        parser_bruteforce.add_argument('--key_file', help="Path to the file used to bruteforce the APP_KEY, must contain one value per line", required=False)
+        parser_bruteforce.add_argument('--cipher_file', help="Path to a file containing a list of ciphered values", required=False)
         parser_bruteforce.add_argument("--value", "-v", default="", help="Value of the laravel ciphered data on which you want to perform a bruteforce", required=False)
         parser_bruteforce.add_argument("--threads", "-t", type=int, default=10, help="Number of threads used during bruteforce (Default 10)", required=False)
         parser_bruteforce.add_argument("--result_file", default="results/results.json", help="File in which you want to save your results (default results/results.json)", required=False)
@@ -195,8 +197,9 @@ class LaravelCryptoKiller():
             # load all ciphers, or only one depending on the options
             ciphers = []
             if args.cipher_file:
-                for line in args.cipher_file:
-                    ciphers.append(line.strip())
+                with open(args.cipher_file, "r") as cipher_file:
+                    for line in cipher_file:
+                        ciphers.append(line.strip())
             else:
                 ciphers.append(args.value)
 
@@ -212,7 +215,7 @@ class LaravelCryptoKiller():
             #Use of multithreading
             self.bruteforce_progress(self.bruteforce_cipher, ciphers)
             if args.cipher_file:
-                print("[*] Data loaded from {}".format(args.cipher_file.name))
+                print("[*] Data loaded from {}".format(args.cipher_file))
             print("[*] {} cipher(s) loaded".format(len(ciphers)))
             if self.number_of_hit > 0 or self.number_of_serialized_data > 0:
                 print("[+] Found a valid key for {} cipher(s)!".format(self.number_of_hit))
